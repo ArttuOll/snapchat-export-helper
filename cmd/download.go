@@ -28,18 +28,33 @@ func init() {
 }
 
 func download(cmd *cobra.Command, args []string) error {
-	path := args[0]
-	b, err := os.ReadFile(path)
+	s, err := readInputToString(args[0])
 	if err != nil {
-		return fmt.Errorf("failed to open %v. is that the correct path to the memories_history.html file?", path)
+		return err
 	}
 
-	s := string(b)
-
-	_, err = html.Parse(strings.NewReader(s))
+	tree, err := parse(s)
 	if err != nil {
-		return fmt.Errorf("failed to parse momeries_history.html file")
+		return err
 	}
 
 	return nil
+}
+
+func readInputToString(path string) (string, error) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return "", fmt.Errorf("failed to open %v. is that the correct path to the memories_history.html file?", path)
+	}
+
+	return string(b), nil
+}
+
+func parse(input string) (*html.Node, error) {
+	tree, err := html.Parse(strings.NewReader(input))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse memories_history.html file")
+	}
+
+	return tree, nil
 }
