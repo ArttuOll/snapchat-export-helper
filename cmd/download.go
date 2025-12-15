@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 
@@ -43,13 +44,27 @@ func download(cmd *cobra.Command, args []string) error {
 		if node.Type == html.ElementNode && node.DataAtom == atom.A {
 			for _, attribute := range node.Attr {
 				if attribute.Key == "onclick" {
-					fmt.Println(attribute.Val)
+					url, err := parseUrl(attribute.Val)
+					if err != nil {
+						return err
+					}
+					fmt.Println(url)
 				}
 			}
 		}
 	}
 
 	return nil
+}
+
+func parseUrl(input string) (*url.URL, error) {
+	urlString := strings.Split(input, "'")[1]
+	url, err := url.Parse(urlString)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse URL from %s", urlString)
+	}
+
+	return url, nil
 }
 
 func readInputToString(path string) (string, error) {
