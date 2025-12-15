@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"golang.org/x/net/html"
+	"golang.org/x/net/html/atom"
 )
 
 // downloadCmd represents the download command
@@ -36,6 +37,16 @@ func download(cmd *cobra.Command, args []string) error {
 	tree, err := parse(s)
 	if err != nil {
 		return err
+	}
+
+	for node := range tree.Descendants() {
+		if node.Type == html.ElementNode && node.DataAtom == atom.A {
+			for _, attribute := range node.Attr {
+				if attribute.Key == "onclick" {
+					fmt.Println(attribute.Val)
+				}
+			}
+		}
 	}
 
 	return nil
