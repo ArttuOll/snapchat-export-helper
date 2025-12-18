@@ -2,6 +2,9 @@ package cmd
 
 import (
 	"fmt"
+	"io"
+	"log"
+	"net/http"
 	"net/url"
 	"os"
 	"strings"
@@ -40,6 +43,7 @@ func download(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	counter := 0
 	for node := range tree.Descendants() {
 		if node.Type == html.ElementNode && node.DataAtom == atom.A {
 			for _, attribute := range node.Attr {
@@ -48,10 +52,56 @@ func download(cmd *cobra.Command, args []string) error {
 					if err != nil {
 						return err
 					}
-					fmt.Println(url)
+
+					err = downloadFile(url, fmt.Sprintf("snapchat_memory_%v", counter))
+					if err != nil {
+						return err
+					}
+
+					counter++
+
+					// Only download the first file during development
+					if counter > 1 {
+						return nil
+					}
 				}
 			}
 		}
+	}
+
+	return nil
+}
+
+func downloadFile(url *url.URL, filename string) error {
+	file, err := os.Create(filename)
+	if err != nil {
+		return fmt.Errorf("failed to create a new file: %w", err)
+	}
+	defer file.Close()
+
+	request, err := http.NewRequest("GET", url.String(), nil)
+	if err != nil {
+		return fmt.Errorf("failed to construct HTTP GET request: %w", err)
+	}
+	request.Header.Add("X-Snap-Route-Tag", "mem-dmd")
+
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		os.Remove(filename)
+		return fmt.Errorf("failed to download file %v: %v", url.String(), err)
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode >= 299 {
+		responseMessage, _ := io.ReadAll(response.Body)
+		return fmt.Errorf("snapchat's server returned with non-success status code: %v %v", response.StatusCode, string(responseMessage))
+	}
+
+	log.Printf("server responded with status %v\n", response.StatusCode)
+
+	_, err = io.Copy(file, response.Body)
+	if err != nil {
+		return fmt.Errorf("failed to copy response to output file: %v", err)
 	}
 
 	return nil
